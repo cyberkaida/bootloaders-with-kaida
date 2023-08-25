@@ -1,0 +1,58 @@
+#pragma endian big
+
+#include <std/mem.pat>
+
+// Some useful links found while developing this pattern file
+// https://github.com/raspberrypi/rpi-eeprom/blob/d774d5794cc63248e559bba201630d00a6e35762/rpi-eeprom-config#L228
+// https://github.com/raspberrypi/rpi-eeprom/issues/153
+// https://git.venev.name/hristo/rpi-eeprom-compress
+
+u32 image_size = 512 * 1024; // This is the size of the EEPROM
+u32 magic_mask = 0xfffff00f;
+u32 file_header_len = 20;
+u32 file_name_len = 12;
+
+u32 erase_align_size = 4096;
+u32 max_file_size = erase_align_size - file_header_len;
+
+enum MAGIC: u32 {
+    magic = 0x55aaf00f, // I am not sure what this one is
+    pad = 0x55aafeef,
+    file_magic = 0x55aaf11f,
+    // Compress with the following
+    // https://git.venev.name/hristo/rpi-eeprom-compress.git
+    // Decompress with the following
+    // https://git.venev.name/hristo/rpi-eeprom-compress/tree/uncompress.c
+    compressed_file = 0x55aaf33f,
+    end = 0xffffffff,
+};
+
+struct ImageSection {
+    MAGIC magic;
+    if (magic == MAGIC::end) {
+        continue;
+    } else {
+        // Padding, Files and Compressed Files share these
+        u32 size;
+        u8 data[size];
+        std::mem::AlignTo<8>;
+        // Both files and compressed files have a structure
+        // to their data
+        if (magic == MAGIC::file_magic || magic == MAGIC::compressed_file) {
+            // File name is 12 bytes, padded with 0x0 if less.
+            char file_name[file_name_len] @ addressof(data);
+            // Todo what are the 4 bytes between the file name and the data
+            u8 file_data[size - file_name_len] @ addressof(data) + file_name_len + 4;
+        }
+    }
+};
+
+struct ReservedPage {
+    u8 data[erase_align_size];
+};
+
+ImageSection sections[while(std::mem::read_unsigned($, 4) != MAGIC::end)] @ 0x0;
+
+// Our image should always be the same size as we flash the whole EEPROM
+// every time.
+ReservedPage reserved_page @ image_size - erase_align_size;

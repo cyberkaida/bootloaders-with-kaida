@@ -144,8 +144,8 @@ xHC ver: 256 HCS: 05000420 fc000031 00e70004 HCC: 002841eb
 xHC ports 5 slots 32 intrs 4 
 ```
 
-> The boot mode is a single byte bitmask which defines how we should boot the system
-> TODO: Add documentation for this bitfield
+> The boot mode is a single byte bitmask which defines how
+> [we should boot the system](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#BOOT_ORDER)
 
 ```
 Boot mode: SD (01) order f4 
@@ -192,8 +192,8 @@ FAT32 clusters 130554
 > At this point we have parsed the FAT filesystem and found the three files the first stage bootloader is interested
 > in!
 > 1. `config.txt` - This is a [configuration file](https://www.raspberrypi.com/documentation/computers/config_txt.html#what-is-config-txt), we pass to the second stage bootloader.
-> 2. `start4.elf` - This is the second stage bootloader. This is responsible for loading the other partitions and starting Linux
-> 3. `fixup4.dat` - TODO: I don't know
+> 2. `start4.elf` - This is the second stage bootloader, loaded onto the VideoCore GPU to bring up the CPU. This is responsible for loading the other partitions and starting Linux
+> 3. `fixup4.dat` - This defines the CPU/GPU memory boundary in the shared memory. It's used to patch the `start4.elf`.
 ```
 Read config.txt bytes     2140 hnd 0x102 
 Read start4.elf bytes  2251392 hnd 0x167f 
@@ -212,7 +212,7 @@ USBSTS 18
 ```
 > Welcome to stage 2!
 > the second stage bootloader is responsible for powering up the RAM and a few devices, mounting the boot
-> partition and finding the Linux kernel, finding the appropriate DeviceTree and starting Linux.
+> partition and finding the Linux kernel, finding the appropriate DeviceTree and starting Linux on the ARM core.
 > - [Wikipedia](https://en.wikipedia.org/wiki/Devicetree)
 > - [Kernel.org](https://www.kernel.org/doc/html/latest/devicetree/usage-model.html)
 > - [Standard](https://www.devicetree.org)
@@ -283,21 +283,22 @@ MESS:00:00:06.692745:0: Read command line from file 'cmdline.txt':
 MESS:00:00:06.698621:0: 'console=serial0,115200 console=tty1 root=PARTUUID=abb15ddf-02 rootfstype=ext4 fsck.repair=yes rootwait' 
 MESS:00:00:06.819816:0: brfs: File read: 102 bytes 
 ```
-> Load the Linux kernel from disk
+> Load the Linux kernel from disk and into system memory.
 > The kernel is loaded into the physical address `0x80000` - see [Kernel.org](https://www.kernel.org/doc/html/latest/arch/arm64/booting.html#booting-aarch64-linux)
-> TODO: Clean up this comment
 ```
 MESS:00:00:07.545247:0: brfs: File read: /mfs/sd/kernel8.img 
 MESS:00:00:07.547802:0: Loaded 'kernel8.img' to 0x80000 size 0x7d6bd0 
 ```
-> TODO: KASLR?? Why doesn't this differ between boots?
+> The kernel is loaded in physical memory to the standard location on aarch64, `0x80000`
 ```
 MESS:00:00:08.727304:0: Kernel relocated to 0x200000 
 MESS:00:00:08.729160:0: Device tree loaded to 0x2eff2c00 (size 0xd31e) 
 MESS:00:00:08.737058:0: uart: Set PL011 baud rate to 103448.300000 Hz 
 MESS:00:00:08.744483:0: uart: Baud rate change done... 
 ```
-> Now we jump to the Linux kernel entry point and Linux starts!
+> Now we jump to the [Linux kernel entry point (`kernel_init` in init/main.c)](https://github.com/torvalds/linux/blob/master/init/main.c#L140)
+> and Linux starts!
+> Our second stage bootloader is complete and output continues from Linux.
 ```
 MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000 [0x410fd083] 
 ```
@@ -345,7 +346,8 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    0.000000] alternatives: applying boot alternatives 
 [    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 996912 
 ```
-> The kernel command line is printed here. Note that it has changed a lot since we extracted it in the second
+> The kernel command line is [printed here](https://github.com/torvalds/linux/blob/f0b0d403eabbe135d8dbb40ad5e41018947d336c/init/main.c#L901).
+> Note that it has changed a lot since we extracted it in the second
 > stage bootloader. This is because changes are made by the bootloader and by Linux based on the device tree
 > we loaded.
 > The `  ` before `console=` is the delimiter, but this is not always the case.
@@ -388,6 +390,10 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    0.000000] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4 
 ```
 > Allocate the [interrupt requests (IRQs) ](https://en.wikipedia.org/wiki/Interrupt_request). [IRQ handling subsystem](https://www.kernel.org/doc/html/v4.12/core-api/genericirq.html)
+> [IRQ setup](https://github.com/torvalds/linux/blob/f0b0d403eabbe135d8dbb40ad5e41018947d336c/init/main.c#L970)
+> is specific to each architecture Linux supports, and each handles things differently.
+> The arm64 setup is located under [arch/arm64/kernel/irq.c](https://github.com/raspberrypi/linux/blob/e079555a4c68356e58249cfc041b28f6eb455bd5/arch/arm64/kernel/irq.c)
+> See the [Linux documentation for the IRQ subsystem](https://github.com/torvalds/linux/tree/master/Documentation/core-api/irq).
 ```
 [    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0 
 [    0.000000] Root IRQ handler: gic_handle_irq 
@@ -398,6 +404,7 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    0.000001] sched_clock: 56 bits at 54MHz, resolution 18ns, wraps every 4398046511102ns 
 ```
 > At this point we set up the output device (an 80x25 character pseudo [teletype](https://en.wikipedia.org/wiki/Teleprinter))
+> Since we have serial enabled, this will also output to the serial device (UART), this is attached to the JTAGulator
 ```
 [    0.000300] Console: colour dummy device 80x25 
 [    0.000910] printk: console [tty1] enabled 
@@ -408,10 +415,10 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    0.005730] rcu:     Max phase no-delay instances is 1000. 
 [    0.007035] EFI services will not be available. 
 ```
-> Enter into Symmetric Multiprocessing mode (SMP)
+> Enter into [Symmetric Multiprocessing mode (SMP)](https://en.wikipedia.org/wiki/Symmetric_multiprocessing)
 > Here we bring each additional CPU online. Until now we have been running only on core0. The other cores
 > have been parked in a "busy loop" running the same instruction over and over.
-> The [busy loop implementation is in the first stage boot loader](https://github.com/raspberrypi/tools/blob/master/armstubs/armstub8.S#L156)
+> The [busy loop implementation is in the first stage boot loader](https://github.com/raspberrypi/tools/blob/master/armstubs/armstub8.S#L156).
 ```
 [    0.007551] smp: Bringing up secondary CPUs ... 
 [    0.008668] Detected PIPT I-cache on CPU1 
@@ -422,7 +429,7 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    0.011267] CPU3: Booted secondary processor 0x0000000003 [0x410fd083] 
 ```
 > We have one physical processor with 4 CPUs.
-> Note that after this point things can happen in parallel
+> Note that after this point things can happen in parallel. Until now everything was single thread, single core.
 ```
 [    0.011413] smp: Brought up 1 node, 4 CPUs 
 [    0.011503] SMP: Total of 4 processors activated. 
@@ -486,7 +493,7 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 ```
 > Bringing up the [Virtual File System (VFS)](https://en.wikipedia.org/wiki/Virtual_file_system).
 > [Kernel.org](https://www.kernel.org/doc/html/latest/filesystems/vfs.html)
-> This is the kernel abstraction over file systems. Provides a unified view of the tree.
+> This is the kernel abstraction over file systems. Provides a unified view of the file system tree.
 ```
 [    0.147828] VFS: Disk quotas dquot_6.6.0 
 [    0.147926] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes) 
@@ -513,7 +520,7 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    1.322430] zbud: loaded 
 ```
 > Now that we have both a network stack and the virtual file system started,
-> we can start up the [Network File System (NFS)](https://en.wikipedia.org/wiki/Network_File_System) driver
+> we can start up the [Network File System (NFS)](https://en.wikipedia.org/wiki/Network_File_System) driver.
 ```
 [    1.325360] NFS: Registering the id_resolver key type 
 [    1.325417] Key type id_resolver registered 
@@ -579,7 +586,7 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    1face driver usb-storage 
 [    1.494089] mousedev: PS/2 mouse device common for all mice 
 ```
-> Getting ready to mount the SDCard
+> Getting ready to mount the SD card.
 ```
 [    1.500084] sdhci: Secure Digital Host Controller Interface driver 
 [    1.500119] sdhci: Copyright(c) Pierre Ossman 
@@ -614,13 +621,13 @@ MESS:00:00:08.746506:0:[    0.000000] Booting Linux on physical CPU 0x0000000000
 [    3.076323] of_cfs_init 
 [    3.078946] of_cfs_init: OK 
 ```
-> Here we find the SDCard and enumerate file systems to look for our root partition
+> Here we find the SD card and enumerate file systems to look for our root partition
 > that was specified in the kernel command line
 ```
 [    3.111131] mmc0: SDHCI controller on fe340000.mmc [fe340000.mmc] using ADMA 
 ```
-> The command line argument for the root partition is parsed here
-> We find the device and mount it as our root partition
+> The command line argument for the root partition is parsed here.
+> We find the device and mount it as our root partition.
 ```
 [    3.118736] Waiting for root device PARTUUID=abb15ddf-02... 
 [    3.170035] mmc1: new high speed SDIO card at address 0001 

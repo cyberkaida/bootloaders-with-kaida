@@ -38,11 +38,57 @@ can lead to catastrophic jailbreaks and impact[^2].
 - [Current Stable EEPROM](https://github.com/raspberrypi/rpi-eeprom/blob/master/firmware/stable/recovery.bin)
 - [Example EEPROM code](https://github.com/raspberrypi/usbboot/)
 
-This is a proprietary instruction set ELF file.
+This is a proprietary instruction set ELF file. We can configure it to boot a custom third stage bootloader instead of a Linux
+kernel by changing the `config.txt` on the SD card. We will [set the `kernel` parameter](https://www.raspberrypi.com/documentation/computers/config_txt.html#kernel)
+to point to a new file on our SD card that will contain the assembled shellcode for our bootloader.
 
-> Idea! Let's boot from this to a new third stage bootloader... this is a proprietary instruction set...
+To make our lives easier we will set:
+- [sha256](https://www.raspberrypi.com/documentation/computers/config_txt.html#sha256)
+- [uart\_2ndstage](https://www.raspberrypi.com/documentation/computers/config_txt.html#uart_2ndstage)
+- [kernel\_address](https://www.raspberrypi.com/documentation/computers/config_txt.html#kernel_address)
+
+To test these changes work, let's first set the `kernel` parameter to point to the existing Raspberry Pi kernel, connect our
+serial adapter and confirm the device boots and outputs logs correctly.
+
 > Idea! Let's blink the LED: https://www.raspberrypi.com/documentation/computers/configuration.html#led-warning-flash-codes
 > Idea! Let's display a logo: https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#boot-diagnostics-on-the-raspberry-pi-4
+
+## Setting up the cross compilation environment
+
+> TODO: Add instructions for setting up the llvm toolchain for ARM
+> TODO: Docker container for cross compilation
+> TODO: GitHub Environment?
+> TODO: Example of debugging with QEMU as an aside
+
+> TODO: Add shellcode for sleeping the CPU
+> TODO: Add shellcode example for blinking the LED
+
+> TODO: Exercise: Blink 0xCC in morse code!
+
+## Accessing EEPROM from bootloader
+
+> TODO: Explain memory view, physical vs virtual memory
+> TODO: Description of memory layout from datasheet
+
+> TODO: Exercise: Blink pattern from EEPROM
+
+> TODO: Load code from EEPROM and jump to it!
+
+> TODO: simple hash, refuse to boot wrong hash.
+
+## Serial communications
+
+> TODO: Explain UARTs
+> TODO: Explain UART controllers on RPi4
+
+> TODO: Simple print from UART example
+
+> TODO: Exercise: Read number and print ascii art for 0xCC logo
+
+## Implement simple boot menu
+
+> TODO: Set Linux command line
+> TODO: Boot Linux
 
 # Video Core Firmware
 

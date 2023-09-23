@@ -1,0 +1,23 @@
+# Patching the existing bootloader
+
+In this exercise we will download the EEPROM content from
+GitHub, extract the logo image from the firmware, and
+replace it with our own image!
+
+## Downloading the EEPROM content
+
+You can download the current EEPROM content from the
+[Raspberry Pi Github](https://github.com/raspberrypi/rpi-eeprom/blob/master/firmware/stable/recovery.bin)
+
+## Parsing the format
+
+The firmware file is in a proprietary format, which we have described
+in the [aside-eeprom](../../aside-eeprom.md).
+
+# Task
+
+- Take the `recovery.bin` file and extract the logo image from it.
+- Create a new TGA file with your own logo (50 × 64 pixels)
+- Patch the EEPROM
+- Flash to the RPi4
+

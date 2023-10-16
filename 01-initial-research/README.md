@@ -6,6 +6,11 @@
 - Learning how to learn! Learn how to figure out where to start.
 - Understand the hardware
 
+## Hardware
+
+- Raspberry Pi 4 or Raspberry Pi 400
+- [RPi debug probe](https://www.raspberrypi.com/documentation/microcontrollers/debug-probe.html)
+
 ## Documentation
 
 ## What is the boot process of the Raspberry Pi 4?

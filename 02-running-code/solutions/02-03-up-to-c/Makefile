@@ -48,16 +48,21 @@ clean:
 
 entry.o: entry.s
 	# Use llvm-mc to assemble the assembly file into an object file
-	$(LLVM_CLANG) -c -target aarch64-elf $(CLANGFLAGS) entry.s -o entry.o
+	$(LLVM_CLANG) -g -c -target aarch64-elf $(CLANGFLAGS) entry.s -o entry.o
 
 main.o: main.c
 	# Use clang to compile the C file into an object file
-	$(LLVM_CLANG) -c -target aarch64-elf $(CLANGFLAGS) main.c -o main.o
+	$(LLVM_CLANG) -g -c -target aarch64-elf $(CLANGFLAGS) main.c -o main.o
 
 
-kernel8.elf: entry.o main.o
+# This is an alternate implementation
+other.o: other.c
+	# Use clang to compile the C file into an object file
+	$(LLVM_CLANG) -g -c -target aarch64-elf $(CLANGFLAGS) other.c -o other.o
+
+kernel8.elf: entry.o main.o other.o
 	# Use ld to link the object file into an ELF
-	$(LLVM_LD) --nostdlib -m aarch64elf entry.o main.o -o kernel8.elf -T link.ld
+	$(LLVM_LD) -g --nostdlib -m aarch64elf entry.o main.o other.o -o kernel8.elf -T link.ld
 
 kernel8.img: kernel8.elf
 	# We don't want an ELF header, we want a raw binary for the bootloader to

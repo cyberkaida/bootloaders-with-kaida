@@ -50,10 +50,86 @@ To make our lives easier we will set:
 To test these changes work, let's first set the `kernel` parameter to point to the existing Raspberry Pi kernel, connect our
 serial adapter and confirm the device boots and outputs logs correctly.
 
-> Idea! Let's blink the LED: https://www.raspberrypi.com/documentation/computers/configuration.html#led-warning-flash-codes
-> Idea! Let's display a logo: https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#boot-diagnostics-on-the-raspberry-pi-4
+## Setting up the cross compilation environment and an ASM stub
 
-## Setting up the cross compilation environment
+For our exercises we will be using the LLVM clang cross compilation
+toolchain. clang is a native cross compiler, unlike gcc. [^3]
+
+The first task is to build a basic program to park the CPU. This
+simple program will be an infinite loop and serves as a platform
+to build our compiler settings for the next set of exercises.
+
+Exercise [02-02-asm-stub](./exercises/02-02-asm-stub) contains
+a base [Makefile](./exercises/02-02-asm-stub) that you can use
+to get running quickly.
+
+We will use clang to compile for our specific architecture.
+By specifying a few arguments we can configure clang to output
+a binary for the Raspberry Pi 4:
+
+- [`-nostdlib`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-nostdlibinc)
+- [`-mcpu=cortex-a72+nosimd`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-mcpu)
+- [`-ffreestanding`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-ffreestanding)
+- [`-nostdinc`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-nostdinc)
+- [`-target aarch64-elf`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-target)
+
+```Makefile
+CLANGFLAGS = -Wall -nostdlib -mcpu=cortex-a72+nosimd -ffreestanding -nostdinc
+TARGET = -target aarch64-elf
+```
+
+Once compiled, we can need to make sure all our references are
+rebased correctly at link time. Unlike user mode programs, we
+must have our first instruction at a specific address in memory.
+The Raspberry Pi 4 ARM core expects its code to be at 0x80000
+when running in 64 bit mode.
+
+The LLVM toolchain provides a script language to tell the linker
+where to place binary components in memory.
+- https://lld.llvm.org 
+- https://sourceware.org/binutils/docs/ld/Scripts.html
+- https://sourceware.org/binutils/docs/ld/Simple-Example.html
+
+A simple example is below. This script sets the base address
+to 0x80000 and keeps any section starting with `.text`.
+
+```
+SECTIONS
+{
+    . = 0x80000;
+    .text : { KEEP(*(.text)) *(.text .text.*) }
+}
+```
+
+Once we've compiled our binary with these options, we will have an ELF
+file. If we inspect this file we'll see it starts with an ELF header:
+
+```
+xxd kernel8.elf | head -n 5
+```
+
+```
+00000000: 7f45 4c46 0201 0100 0000 0000 0000 0000  .ELF............
+00000010: 0200 b700 0100 0000 0000 0800 0000 0000  ................
+00000020: 4000 0000 0000 0000 a000 0100 0000 0000  @...............
+00000030: 0000 0000 4000 3800 0200 4000 0600 0400  ....@.8...@.....
+00000040: 0100 0000 0500 0000 0000 0100 0000 0000  ................
+```
+
+Unfortunely our instructions are below the header in the binary...
+but we can use [objcopy](https://releases.llvm.org/9.0.0/docs/CommandGuide/llvm-objcopy.html)
+to extract just the binary part of the ELF file and produce something
+the Raspberry Pi can boot.
+
+```
+llbm-objcopy -O binary kernel8.elf kernel8.img
+```
+
+Finally we have a bootable image! We can copy this to the `bootfs` partition
+of our SD Card and boot into our bootloader!
+
+
+[^3] [The LLVM overview](https://llvm.org)
 
 > TODO: Add instructions for setting up the llvm toolchain for ARM
 > TODO: Docker container for cross compilation
@@ -61,9 +137,15 @@ serial adapter and confirm the device boots and outputs logs correctly.
 > TODO: Example of debugging with QEMU as an aside
 
 > TODO: Add shellcode for sleeping the CPU
-> TODO: Add shellcode example for blinking the LED
 
-> TODO: Exercise: Blink 0xCC in morse code!
+## Serial communications
+
+> TODO: Explain UARTs
+> TODO: Explain UART controllers on RPi4
+
+> TODO: Simple print from UART example
+
+> TODO: Exercise: Read number and print ascii art for 0xCC logo
 
 ## Accessing EEPROM from bootloader
 
@@ -76,14 +158,6 @@ serial adapter and confirm the device boots and outputs logs correctly.
 
 > TODO: simple hash, refuse to boot wrong hash.
 
-## Serial communications
-
-> TODO: Explain UARTs
-> TODO: Explain UART controllers on RPi4
-
-> TODO: Simple print from UART example
-
-> TODO: Exercise: Read number and print ascii art for 0xCC logo
 
 ## Implement simple boot menu
 

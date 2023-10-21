@@ -50,6 +50,13 @@ entry.o: entry.s
 	# Use llvm-mc to assemble the assembly file into an object file
 	$(LLVM_MC) --assemble --triple arm64 entry.s -filetype=obj -o entry.o
 
+qemu: kernel8.img
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial null -serial stdio -gdb tcp::1234 -S
+	# To attach from lldb:
+	# lldb
+	# gdb-remote localhost:1234
+	# continue
+
 kernel8.img: entry.o
 	# Use ld to link the object file into an ELF
 	$(LLVM_LD) --nostdlib entry.o -o kernel8.elf -T link.ld

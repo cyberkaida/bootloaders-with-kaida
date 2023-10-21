@@ -37,32 +37,51 @@ LLVM_OBJCOPY := $(LLVM_HOME)/bin/llvm-objcopy
 # Since we are bootstrapping C code, we need a C compiler. We will use clang.
 LLVM_CLANG := $(LLVM_HOME)/bin/clang
 
-CLANGFLAGS = -Wall -O2 -nostdlib -mcpu=cortex-a72+nosimd -ffreestanding -nostdinc 
+CLANGFLAGS = -Wall -nostdlib -mcpu=cortex-a72+nosimd -ffreestanding -nostdinc 
 
+TARGET = -target aarch64-elf
+HARNESS ?= 0
+ifeq ($(HARNESS),1)
+	CLANGFLAGS = -Wall -O2 -fsanitize=address
+	TARGET =
+endif
 
-all: kernel8.img
+all: todo kernel8.img
 
 clean: 
 	rm -f *.o *.elf *.img || true
 
+todo:
+	# We can quickly check for TODOs in our code
+	grep TODO entry.s link.ld || true
+
+harness: main.o other.o
+	$(LLVM_CLANG) $(CLANGFLAGS) -g main.o other.o -o harness
 
 entry.o: entry.s
-	# Use llvm-mc to assemble the assembly file into an object file
-	$(LLVM_CLANG) -g -c -target aarch64-elf $(CLANGFLAGS) entry.s -o entry.o
+	# Use clang to assemble the assembly file into an object file
+	$(LLVM_CLANG) -g -c $(TARGET) $(CLANGFLAGS) entry.s -o entry.o
+
+uart.o: uart.c uart.h
+	# Use clang to compile the C file into an object file
+	$(LLVM_CLANG) -g -c $(TARGET) $(CLANGFLAGS) uart.c -o uart.o
+gpio.o: gpio.c gpio.h
+	$(LLVM_CLANG) -g -c $(TARGET) $(CLANGFLAGS) gpio.c -o gpio.o
 
 main.o: main.c
 	# Use clang to compile the C file into an object file
-	$(LLVM_CLANG) -g -c -target aarch64-elf $(CLANGFLAGS) main.c -o main.o
+	$(LLVM_CLANG) -g -c $(TARGET) -DHARNESS=$(HARNESS) $(CLANGFLAGS) main.c -o main.o
 
+qemu: kernel8.img
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial null -serial stdio -gdb tcp::1234 -S
 
-# This is an alternate implementation
-other.o: other.c
-	# Use clang to compile the C file into an object file
-	$(LLVM_CLANG) -g -c -target aarch64-elf $(CLANGFLAGS) other.c -o other.o
+test: kernel8.img
+	# This requires rizin and rzpipe to be installed
+	python3 test.py
 
-kernel8.elf: entry.o main.o other.o
+kernel8.elf: entry.o main.o uart.o gpio.o
 	# Use ld to link the object file into an ELF
-	$(LLVM_LD) -g --nostdlib -m aarch64elf entry.o main.o other.o -o kernel8.elf -T link.ld
+	$(LLVM_LD) -g --nostdlib -m aarch64elf entry.o main.o uart.o gpio.o -o kernel8.elf -T link.ld
 
 kernel8.img: kernel8.elf
 	# We don't want an ELF header, we want a raw binary for the bootloader to

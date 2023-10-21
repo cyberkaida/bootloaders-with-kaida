@@ -1,1 +1,8 @@
 .DS_Store
+*.o
+*.elf
+*.img
+*.tga
+*.eeprom
+*.bin
+*.compressed

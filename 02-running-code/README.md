@@ -215,7 +215,138 @@ The following pins are used by the mini-UART:
 
 > Remember! You must connect the TX (transmit) pin on the RPi to the RX (receive) pin of your serial adapter!
 
+### Up to C
 
+Until now we have been programming in raw assembly. This is fine for simple programs,
+but it would be great to have a high level language like C! Our UART communication will
+require more complexity, and using C will be much easier.
+
+We could also call into another systems language like Rust, but right now (2023) most bootloaders
+at least start in C.
+
+To get from assembly to C, we must implement a few things:
+- A calling convention
+- A stack for local variables
+- The .bss and .rodata sections for data such as strings
+- Optionally, the `.data` section for global variables
+
+We will need to make changes in our linker script for the new sections, and
+in out shellcode for the calling convention.
+
+For the standard C [calling convention](https://en.wikipedia.org/wiki/Calling_convention#ARM_(A64))
+we must implement [the stack](https://en.wikipedia.org/wiki/Call_stack)
+and place the bottom of the stack in the [`sp` register](https://developer.arm.com/documentation/dui0801/a/Overview-of-AArch64-state/Stack-Pointer-register).
+
+On ARM (and most platforms) the stack grows _down_. This means we place the highest address in the `sp` register, and each call will _subtract_ from
+this value to grow the stack.
+
+We should pick a location in memory for our stack that will not contain code or data that our bootloader uses. We
+don't want C to override any of our code or data with stack variables.
+
+For our purposes we can place the base of our stack at `__start`. When we call the `bootloader_main` function with
+a [branch and link instruction (`bl`)](https://developer.arm.com/documentation/dui0802/b/A32-and-T32-Instructions/B--BL--BX--and-BLX)
+we will store the current address in the link register and jump to the start of `bootloader_main`.
+The `bootloader_main` function will be compiled by llvm with the C calling convention (unless we override it), and the first
+few instructions will subtract from the stack pointer (`sp` register) enough space for local variables. By placing our stack
+at `__start` we will have 0x80000 bytes available on the stack total. Using more than this will result in a stack overflow and
+_bad things_ will happen.
+
+Implementing the stack allows us to call functions and allocate stack variables in C, but global variables and read only data will
+not be available.
+
+We _could_ only use stack variables like so:
+
+```c
+void bootloader_main(void) {
+    // This will create a stack variable and populate it with
+    // individual mov instructions...
+    char string[] = {'h', 'i', '\n', '\0'};
+
+    while(1) {
+        // We have no where to return to...
+    }
+}
+```
+
+but it would be much easier to do something more natural like:
+
+```c
+void bootloader_main(void) {
+    // This will create a variable in the .rodata section
+    // and set `string` with a `ldr` instruction. Much easier!
+    char *string = "hi\n";
+
+    while(1) {
+        // We have no where to return to...
+    }
+}
+```
+
+For constants we need to implement two things, the [`.rodata` section](https://en.wikipedia.org/wiki/Data_segment#Data)
+and the [`.bss` section](https://en.wikipedia.org/wiki/Data_segment#BSS).
+
+First let's add the `.data` and `.rodata` sections in our linker script:
+
+```
+    /* Place .rodata in the binary. */
+    .rodata : { *(.rodata .rodata.*) }
+    /* Place a symbol called _data at the current location */
+    PROVIDE(_data = .);
+    /* Place .data in the binary */
+    .data : { *(.data .data.*) }
+```
+
+This part of the linker script will tell the linker to place the
+`.rodata` and `.data` sections in the output binary directly.
+This is fine as they are accounted for in the executable image
+(the bytes are actually in the file).
+
+Unfortunately the `.bss` section is allocated by the loader. The
+file on disk does not contain bytes for the `.bss` section. As
+we are the loader, we will have to allocate this ourselves!
+
+In our linker script we will define the constants in the binary
+like so:
+
+```
+    .bss (NOLOAD) : {
+        . = ALIGN(16);
+        __bss_start = .;
+        *(.bss .bss.*)
+        *(COMMON)
+        __bss_end = .;
+    }
+
+__bss_size = (__bss_end - __bss_start)>>3;
+```
+
+Here we define the `.bss` section as [NOLOAD](https://sourceware.org/binutils/docs/ld/Output-Section-Type.html).
+We then set [the alignment](https://sourceware.org/binutils/docs/ld/Builtin-Functions.html#index-ALIGN_0028align_0029)
+for the start and end addresses to 16 byte alignment and set a symbol (`__bss_start`) to the address of the beginning of
+the section.
+We place all the variables that would go into the `.bss` section here, then set another symbol (`__bss_end`) to the end of the
+section. Note as this is `NOLOAD` this space is not emitted into the binary, only the symbols are. Finally we emit a symbol for
+the size of the `.bss` section, so we know how long to loop for.
+
+Now that the binary has the correct symbols, we can allocate this space at runtime in the bootloader. By doing this we reduce the
+EEPROM and cache space requirements of our bootloader, the entire bootloader binary must be loaded into cache to run.
+
+We add the following code to our bootloader to allocate this space. There are a few ways to implement this,
+an example is below:
+
+```aarch64
+    // Clean the BSS section
+    ldr     x1, =__bss_start // Start address. From the linker script.
+    ldr     w2, =__bss_size  // Size of the section. From the linker script.
+bss_loop:  cbz     w2, bootloader_loop_exit  // Quit loop if zero
+    str     xzr, [x1], #8 // Load 8 NULL bytes from the zero register
+    sub     w2, w2, #1 // subtract from our counter
+    cbnz    w2, bss_loop // Loop if non-zero
+bss_loop_exit:
+```
+
+Now we are ready to call into C! We have a stack and memory allocated for
+constants (`.rodata`), global variables (`.data`), and the `.bss` section!
 
 > TODO: Simple print from UART example
 

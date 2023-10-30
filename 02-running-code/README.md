@@ -104,10 +104,11 @@ SECTIONS
 Once we've compiled our binary with these options, we will have an ELF
 file. If we inspect this file we'll see it starts with an ELF header:
 
+First we can output the first few bytes as hex using [`xxd`](https://linux.die.net/man/1/xxd)
 ```
 xxd kernel8.elf | head -n 5
 ```
-
+At the start of the file here, we see the [ELF magic](https://linux.die.net/man/5/elf) (`EI_MAG0`, etc)
 ```
 00000000: 7f45 4c46 0201 0100 0000 0000 0000 0000  .ELF............
 00000010: 0200 b700 0100 0000 0000 0800 0000 0000  ................
@@ -122,11 +123,14 @@ to extract just the binary part of the ELF file and produce something
 the Raspberry Pi can boot.
 
 ```
-llbm-objcopy -O binary kernel8.elf kernel8.img
+llvm-objcopy -O binary kernel8.elf kernel8.img
 ```
 
 Finally we have a bootable image! We can copy this to the `bootfs` partition
 of our SD Card and boot into our bootloader!
+
+With some luck we should see the bootloader boot the shellcode and the Raspberry
+Pi will hang.
 
 
 [^3] [The LLVM overview](https://llvm.org)

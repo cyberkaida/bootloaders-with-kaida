@@ -257,3 +257,7 @@ https://github.com/hermanhermitage/videocoreiv
      - [fail0verflow - Nintendo Switch Tegra X1 exploit](https://fail0verflow.com/blog/2018/shofel2/)
      - [Wired - checkm8 interview with axi0mX](https://arstechnica.com/information-technology/2019/09/developer-of-checkm8-explains-why-idevice-jailbreak-exploit-is-a-game-changer/) 
      - [GitHub - wind3x iPod exploit](https://github.com/freemyipod/wInd3x)
+
+# Extra references
+- https://nostarch.com/art-arm-assembly
+- https://nostarch.com/bare-metal-c

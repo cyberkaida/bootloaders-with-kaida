@@ -184,8 +184,38 @@ main_core:  // We're on the main core!
 
 ## Serial communications
 
-> TODO: Explain UARTs
-> TODO: Explain UART controllers on RPi4
+So far we have a machine that does nothing useful, with no
+way to talk to the outside world. Wouldn't it be great to have some
+output?
+
+A common early stage output is via serial and a common protocol for
+serial output is [UART](https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter).
+UART is a simple communication protocol and is widely implemented in
+embedded hardware.
+
+There are actually [many UARTs on the Raspberry Pi](https://elinux.org/RPi_Serial_Connection), connected to different
+components. There is a simple UART designed for early boot and to act as
+a console, the mini-UART. This is described in the BCM2711 datasheet, section 2.2.
+This section sounds complex, but we can break this down into simple steps.
+
+First let's observe existing output. We can do this by enabling the mini-UART for the
+first and second stage bootloaders. The [documentation for the `config.txt` file](https://www.raspberrypi.com/documentation/computers/legacy_config_txt.html#uart_2ndstage)
+describes the `uart_2ndstage` option. When set to `1` the second stage bootloader will output
+to the mini-UART.
+The first stage bootloader does not parse this file, instead it must be patched.
+[The bootcode.bin documentation](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#bootcode-bin-uart-enable)
+describes how to enable UART for the first stage bootloader.
+
+By observing existing output, we can confirm that our serial adapter is configured correctly.
+To configure our serial adapter we need to connect the pins to the mini-UART output,
+The following pins are used by the mini-UART:
+- [Ground - pin 6](https://pinout.xyz/pinout/ground)
+- [GPIO 14 - pin 8](https://pinout.xyz/pinout/pin8_gpio14/)
+- [GPIO 15 - pin 10](https://pinout.xyz/pinout/pin10_gpio15/)
+
+> Remember! You must connect the TX (transmit) pin on the RPi to the RX (receive) pin of your serial adapter!
+
+
 
 > TODO: Simple print from UART example
 

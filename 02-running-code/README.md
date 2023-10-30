@@ -42,12 +42,12 @@ This is a proprietary instruction set ELF file. We can configure it to boot a cu
 kernel by changing the `config.txt` on the SD card. We will [set the `kernel` parameter](https://www.raspberrypi.com/documentation/computers/config_txt.html#kernel)
 to point to a new file on our SD card that will contain the assembled shellcode for our bootloader.
 
-To make our lives easier we will set:
+Later, we will investigate the following config.txt settings:
 - [sha256](https://www.raspberrypi.com/documentation/computers/config_txt.html#sha256)
 - [uart\_2ndstage](https://www.raspberrypi.com/documentation/computers/config_txt.html#uart_2ndstage)
 - [kernel\_address](https://www.raspberrypi.com/documentation/computers/config_txt.html#kernel_address)
 
-To test these changes work, let's first set the `kernel` parameter to point to the existing Raspberry Pi kernel, connect our
+To test these changes work, let's first set the `kernel` parameter to point to the existing Raspberry Pi kernel (`kernel8.img`), connect our
 serial adapter and confirm the device boots and outputs logs correctly.
 
 ## Setting up the cross compilation environment and an ASM stub
@@ -117,10 +117,12 @@ At the start of the file here, we see the [ELF magic](https://linux.die.net/man/
 00000040: 0100 0000 0500 0000 0000 0100 0000 0000  ................
 ```
 
-Unfortunely our instructions are below the header in the binary...
-but we can use [objcopy](https://releases.llvm.org/9.0.0/docs/CommandGuide/llvm-objcopy.html)
-to extract just the binary part of the ELF file and produce something
-the Raspberry Pi can boot.
+Unfortunely our instructions are below the header in the binary... `\x7fELF` will be at 0x80000,
+and these aren't valid instructions.
+
+We can use [objcopy](https://releases.llvm.org/9.0.0/docs/CommandGuide/llvm-objcopy.html)
+to extract just the binary part of the ELF file, removing the header and we can produce something
+the Raspberry Pi can boot by placing the instructions directly at 0x80000.
 
 ```
 llvm-objcopy -O binary kernel8.elf kernel8.img
@@ -135,12 +137,50 @@ Pi will hang.
 
 [^3] [The LLVM overview](https://llvm.org)
 
-> TODO: Add instructions for setting up the llvm toolchain for ARM
-> TODO: Docker container for cross compilation
-> TODO: GitHub Environment?
-> TODO: Example of debugging with QEMU as an aside
+### ARM Shellcode
 
-> TODO: Add shellcode for sleeping the CPU
+At this stage of the bootstrap, we don't have many of the
+conveniences that we have in user land or even a kernel, so we need to do
+a lot ourselves.
+
+For example:
+- We run all code on all cores
+- We don't have an allocator, or page tables
+- We don't have a calling convention, so no functions
+
+This sounds very scary, but we can build this ourselves!
+
+The first step is to make sure we are single threaded, we don't
+want to deal with multithreading or multiprocessing complexity this early.
+
+We can do this on ARM using a special register and the [`mrs` instruction](https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/coprocessor-instructions/mrs)
+the [Multiprocessor Affinity Register](https://developer.arm.com/documentation/ddi0595/2021-12/AArch64-Registers/MPIDR-EL1--Multiprocessor-Affinity-Register) (in the [ID functional group](https://developer.arm.com/documentation/ddi0595/2021-12/Registers-by-Functional-Group?lang=en#ID)) contains the current core ID. We can use this to write some
+shellcode that executions only on a particular core.
+
+The logic is:
+- Check the core ID
+- If the core is the first core, jump to main code
+- For any other value, infinite loop (called a "parking" a core)
+
+In this way we can disregard the complexity of multiprocessing until
+we have more abstraction layers in place (usually the kernel will enable
+multiprocessing).
+
+In practice we can do something like the following:
+
+```aarch64
+_start:
+    // Check processor ID is zero (executing on main core)
+    // else hang.
+    mrs     x1, mpidr_el1
+    and     x1, x1, #3
+    cbz     x1, main_core
+    // We're not on the main core, so hang in an infinite loop
+park_loop:  wfe
+    b       park_loop 
+main_core:  // We're on the main core!
+    // The rest of our shellcode can go here
+```
 
 ## Serial communications
 

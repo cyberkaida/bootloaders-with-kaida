@@ -1,6 +1,8 @@
 # 02 - Running code
 
 Let's start by studying the existing bootloader!
+We can read through the [annotated boot log](../01-initial-research/annotated-boot-log.md)
+for an overview of the boot process.
 
 ## The first stage bootloader
 
@@ -53,7 +55,9 @@ serial adapter and confirm the device boots and outputs logs correctly.
 ## Setting up the cross compilation environment and an ASM stub
 
 For our exercises we will be using the LLVM clang cross compilation
-toolchain. clang is a native cross compiler, unlike gcc. [^3]
+toolchain. clang is a native cross compiler, unlike gcc.[^3] Cross
+compilation in gcc can be a long and difficult process if you start
+from scratch.
 
 The first task is to build a basic program to park the CPU. This
 simple program will be an infinite loop and serves as a platform
@@ -61,17 +65,19 @@ to build our compiler settings for the next set of exercises.
 
 Exercise [02-02-asm-stub](./exercises/02-02-asm-stub) contains
 a base [Makefile](./exercises/02-02-asm-stub) that you can use
-to get running quickly.
+to get running quickly. You can look at the task before reading
+the rest of this section, but you should finish reading this
+section before starting!
 
 We will use clang to compile for our specific architecture.
 By specifying a few arguments we can configure clang to output
 a binary for the Raspberry Pi 4:
 
-- [`-nostdlib`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-nostdlibinc)
-- [`-mcpu=cortex-a72+nosimd`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-mcpu)
-- [`-ffreestanding`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-ffreestanding)
-- [`-nostdinc`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-nostdinc)
-- [`-target aarch64-elf`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-target)
+- [`-nostdlib`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-nostdlibinc) to remove any links to the C standard library. These depend on a kernel, and we don't have one yet!
+- [`-mcpu=cortex-a72+nosimd`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-mcpu) to output code for our specific core. We could also define just aarch64 but being specific helps the optimiser.
+- [`-ffreestanding`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-ffreestanding) to remove all links and assumptions about loaders, etc.
+- [`-nostdinc`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-nostdinc) to error on any imports from the standard include paths, these depend on the C standard library, which we don't have!
+- [`-target aarch64-elf`](https://clang.llvm.org/docs/CommandGuide/clang.html#cmdoption-target) to output an ELF file for aarch64. This will make it easier to analyse if we have bugs. We will extract the code using `objcopy` for flashing later.
 
 ```Makefile
 CLANGFLAGS = -Wall -nostdlib -mcpu=cortex-a72+nosimd -ffreestanding -nostdinc
@@ -82,14 +88,21 @@ Once compiled, we can need to make sure all our references are
 rebased correctly at link time. Unlike user mode programs, we
 must have our first instruction at a specific address in memory.
 The Raspberry Pi 4 ARM core expects its code to be at 0x80000
-when running in 64 bit mode.
+when running in 64 bit mode, this is defined not in the ARM
+specification, but by the manufacturer.
+
+Constants like this 0x80000 are common when building bootloaders,
+like with software, hardware also has an API or a contract.
+
+> Question! How can we find the expected load address?
+
+This 0x80000 address can be found in a few ways:
+- [Observing output from the previous boot stage over serial](../01-initial-research/annotated-boot-log.md) (search for `Loading 'kernel8.img' to 0x80000 size`)
+- [Looking at an existing implementation like Linux](https://docs.kernel.org/5.19/arm64/booting.html) (search for 0x80000)
+- Asking the hardware team!
 
 The LLVM toolchain provides a script language to tell the linker
 where to place binary components in memory.
-- https://lld.llvm.org 
-- https://sourceware.org/binutils/docs/ld/Scripts.html
-- https://sourceware.org/binutils/docs/ld/Simple-Example.html
-
 A simple example is below. This script sets the base address
 to 0x80000 and keeps any section starting with `.text`.
 
@@ -101,7 +114,12 @@ SECTIONS
 }
 ```
 
-Once we've compiled our binary with these options, we will have an ELF
+Some useful references for linker scripting:
+- https://lld.llvm.org 
+- https://sourceware.org/binutils/docs/ld/Scripts.html
+- https://sourceware.org/binutils/docs/ld/Simple-Example.html
+
+Once we have compiled our binary with these options, we will have an ELF
 file. If we inspect this file we'll see it starts with an ELF header:
 
 First we can output the first few bytes as hex using [`xxd`](https://linux.die.net/man/1/xxd)
@@ -118,24 +136,23 @@ At the start of the file here, we see the [ELF magic](https://linux.die.net/man/
 ```
 
 Unfortunely our instructions are below the header in the binary... `\x7fELF` will be at 0x80000,
-and these aren't valid instructions.
+and these bytes aren't valid instructions.
 
 We can use [objcopy](https://releases.llvm.org/9.0.0/docs/CommandGuide/llvm-objcopy.html)
-to extract just the binary part of the ELF file, removing the header and we can produce something
+to extract just the binary part of the ELF file, removing the header to produce something
 the Raspberry Pi can boot by placing the instructions directly at 0x80000.
 
-```
+```sh
 llvm-objcopy -O binary kernel8.elf kernel8.img
 ```
 
-Finally we have a bootable image! We can copy this to the `bootfs` partition
-of our SD Card and boot into our bootloader!
+Finally we have a bootable image! We can copy `kernel8.img` to the `bootfs` partition
+of our SD Card, insert it into the Raspberry Pi and boot into our bootloader!
 
 With some luck we should see the bootloader boot the shellcode and the Raspberry
-Pi will hang.
+Pi will hang ✨👩‍💻🎉🎉
 
-
-[^3] [The LLVM overview](https://llvm.org)
+[^3]: [The LLVM overview](https://llvm.org)
 
 ### ARM Shellcode
 
@@ -384,7 +401,7 @@ https://github.com/hermanhermitage/videocoreiv
 [^1]: There are many attacks against these "immutable" bootloaders
       including power glitching (a type of [side channel attack](https://en.wikipedia.org/wiki/Side-channel_attack))
       using tools like the [ChipWhisperer](https://wiki.newae.com/Main_Page)
-[^2] Bugs in bootloaders stored in ROM have high impact. See:
+[^2]: Bugs in bootloaders stored in ROM have high impact. See:
      - [fail0verflow - Nintendo Switch Tegra X1 exploit](https://fail0verflow.com/blog/2018/shofel2/)
      - [Wired - checkm8 interview with axi0mX](https://arstechnica.com/information-technology/2019/09/developer-of-checkm8-explains-why-idevice-jailbreak-exploit-is-a-game-changer/) 
      - [GitHub - wind3x iPod exploit](https://github.com/freemyipod/wInd3x)

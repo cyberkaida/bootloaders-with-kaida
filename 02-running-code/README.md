@@ -273,7 +273,8 @@ this value to grow the stack.
 We should pick a location in memory for our stack that will not contain code or data that our bootloader uses. We
 don't want C to override any of our code or data with stack variables.
 
-For our purposes we can place the base of our stack at `__start`. When we call the `bootloader_main` function with
+For our purposes we can place the base of our stack at `__start` (defined in the shellcode and placed by the linker at 0x80000).
+When we call the `bootloader_main` function with
 a [branch and link instruction (`bl`)](https://developer.arm.com/documentation/dui0802/b/A32-and-T32-Instructions/B--BL--BX--and-BLX)
 we will store the current address in the link register and jump to the start of `bootloader_main`.
 The `bootloader_main` function will be compiled by llvm with the C calling convention (unless we override it), and the first

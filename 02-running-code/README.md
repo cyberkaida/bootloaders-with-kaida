@@ -188,7 +188,9 @@ Pi will hang ✨👩‍💻🎉🎉
 
 [^3]: [The LLVM overview](https://llvm.org)
 
-### ARM Shellcode
+## Bootstrapping to C
+
+### Single threading
 
 At this stage of the bootstrap, we don't have many of the
 conveniences that we have in user land or even a kernel, so we need to do
@@ -224,11 +226,15 @@ _start:
     // Check processor ID is zero (executing on main core)
     // else hang.
     mrs     x1, mpidr_el1
+    // Bitwise AND with 0b111.
     and     x1, x1, #3
+    // If the result of the AND above was 0b000
+    // jump to `main_core`
     cbz     x1, main_core
     // We're not on the main core, so hang in an infinite loop
-park_loop:  wfe
-    b       park_loop 
+park_loop:  
+    wfe     // Put the core to sleep until an interrupt arrives
+    b       park_loop  // If we wake, go back to sleep.
 main_core:  // We're on the main core!
     // The rest of our shellcode can go here
 ```
@@ -237,20 +243,22 @@ So far we have a machine that does nothing useful, with no
 way to talk to the outside world. Wouldn't it be great to have some
 output? Next we will bootstrap up to C and implement serial output!
 
-### Up to C
+### Setup for C
 
 Until now we have been programming in raw assembly. This is fine for simple programs,
 but it would be great to have a high level language like C! Our UART communication will
 require more complexity, and using C will be much easier.
 
 We could also call into another systems language like Rust, but right now (2023) most bootloaders
-at least start in C.
+at least start in C. If you are writing a bootloader from scratch, try Rust! The process
+is very similar to C.
 
 To get from assembly to C, we must implement a few things:
-- A calling convention
-- A stack for local variables
-- The .bss and .rodata sections for data such as strings
-- Optionally, the `.data` section for global variables
+- A [calling convention](https://en.wikipedia.org/wiki/Calling_convention#ARM_(A64))
+- A [stack for local variables](https://en.wikipedia.org/wiki/Call_stack)
+- [Data segments](https://en.wikipedia.org/wiki/Data_segment)
+    - The `.bss` and `.rodata` sections for data such as strings
+    - Optionally, the `.data` section for global variables
 
 We will need to make changes in our linker script for the new sections, and
 in out shellcode for the calling convention.

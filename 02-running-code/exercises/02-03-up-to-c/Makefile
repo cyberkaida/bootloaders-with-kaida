@@ -2,7 +2,7 @@
 # so we can change toolchains for cross compilation
 
 # Base of the LLVM installation
-LLVM_HOME ?= $(shell llvm-config -prefix)
+LLVM_HOME ?= $(shell llvm-config --prefix)
 # Check that LLVM_HOME is set
 ifeq ($(LLVM_HOME),)
 $(error LLVM_HOME is not set. Check that llvm-config is on your PATH or set the LLVM_HOME environment variable)

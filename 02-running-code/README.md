@@ -319,44 +319,53 @@ First let's add the `.data` and `.rodata` sections in our linker script:
 
 ```
     /* Place .rodata in the binary. */
+    /* This is where read only data (like our string) will be placed */
     .rodata : { *(.rodata .rodata.*) }
     /* Place a symbol called _data at the current location */
     PROVIDE(_data = .);
     /* Place .data in the binary */
+    /* This is where global variables will be placed */
     .data : { *(.data .data.*) }
 ```
 
 This part of the linker script will tell the linker to place the
-`.rodata` and `.data` sections in the output binary directly.
+`.rodata` and `.data` sections in the output binary directly at compile time.
 This is fine as they are accounted for in the executable image
 (the bytes are actually in the file).
+
+For example, the string from our C would be located somewhere in the `.rodata` section
+(as it is read only).
 
 Unfortunately the `.bss` section is allocated by the loader. The
 file on disk does not contain bytes for the `.bss` section. As
 we are the loader, we will have to allocate this ourselves!
 
-In our linker script we will define the constants in the binary
-like so:
-
-```
-    .bss (NOLOAD) : {
-        . = ALIGN(16);
-        __bss_start = .;
-        *(.bss .bss.*)
-        *(COMMON)
-        __bss_end = .;
-    }
-
-__bss_size = (__bss_end - __bss_start)>>3;
-```
+In our linker script we will define some constants in the binary
+like so to indicate the start, end and size of the `.bss` section.
 
 Here we define the `.bss` section as [NOLOAD](https://sourceware.org/binutils/docs/ld/Output-Section-Type.html).
 We then set [the alignment](https://sourceware.org/binutils/docs/ld/Builtin-Functions.html#index-ALIGN_0028align_0029)
 for the start and end addresses to 16 byte alignment and set a symbol (`__bss_start`) to the address of the beginning of
 the section.
-We place all the variables that would go into the `.bss` section here, then set another symbol (`__bss_end`) to the end of the
-section. Note as this is `NOLOAD` this space is not emitted into the binary, only the symbols are. Finally we emit a symbol for
-the size of the `.bss` section, so we know how long to loop for.
+
+The linker will place all the uninitialised variables that would go into the `.bss` section here,
+then set another symbol (`__bss_end`) to the end of the
+section. Note as this is `NOLOAD` this space is not emitted into the binary, only the symbols we define are inserted.
+Finally we emit a symbol for the size of the `.bss` section, so we know how long to loop for in our shellcode.
+
+```
+    .bss (NOLOAD) : {
+        . = ALIGN(16);
+        __bss_start = .; /* emit a symbol for the current address */
+        *(.bss .bss.*)   /* Place the uninitialised variables */
+        *(COMMON)
+        __bss_end = .;   /* emit a symbol for the current address */
+    }
+
+/* Finally emit a symbol for the size of the .bss */
+/* TODO: Explain the >>3 */
+__bss_size = (__bss_end - __bss_start)>>3;
+```
 
 Now that the binary has the correct symbols, we can allocate this space at runtime in the bootloader. By doing this we reduce the
 EEPROM and cache space requirements of our bootloader, the entire bootloader binary must be loaded into cache to run.

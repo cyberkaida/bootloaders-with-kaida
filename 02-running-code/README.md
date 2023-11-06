@@ -4,6 +4,9 @@ Let's start by studying the existing bootloader!
 We can read through the [annotated boot log](../01-initial-research/annotated-boot-log.md)
 for an overview of the boot process.
 
+Some references that will be useful throughout this section:
+- [DataSheet for the BCM2711](https://datasheets.raspberrypi.com/bcm2711/bcm2711-peripherals.pdf)
+
 ## Serial communications
 
 A common early stage output is via serial and a common protocol for
@@ -18,9 +21,11 @@ This section sounds complex, but we can break this down into simple steps.
 
 First let's observe existing output. We can do this by enabling the mini-UART for the
 first and second stage bootloaders. The [documentation for the `config.txt` file](https://www.raspberrypi.com/documentation/computers/legacy_config_txt.html#uart_2ndstage)
+(on the `bootfs` partition of the SDCard)
 describes the `uart_2ndstage` option. When set to `1` the second stage bootloader will output
 to the mini-UART.
-The first stage bootloader does not parse this file, instead it must be patched.
+
+The first stage bootloader is too simple to parse this file, instead it must be patched.
 [The bootcode.bin documentation](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#bootcode-bin-uart-enable)
 describes how to enable UART for the first stage bootloader.
 

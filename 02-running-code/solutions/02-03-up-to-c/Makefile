@@ -87,3 +87,6 @@ kernel8.img: kernel8.elf
 	# We don't want an ELF header, we want a raw binary for the bootloader to
 	# jump to
 	$(LLVM_OBJCOPY) -O binary kernel8.elf kernel8.img
+
+disassemble: kernel8.elf
+	$(LLVM_HOME)/bin/llvm-objdump --disassemble kernel8.elf

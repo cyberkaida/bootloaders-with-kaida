@@ -364,7 +364,7 @@ Finally we emit a symbol for the size of the `.bss` section, so we know how long
     }
 
 /* Finally emit a symbol for the size of the .bss */
-/* TODO: Explain the >>3 */
+/* We're doing a divide by 8 here, because in the loader we will allocate 8 bytes at a time. */
 __bss_size = (__bss_end - __bss_start)>>3;
 ```
 
@@ -378,7 +378,8 @@ an example is below:
     // Clean the BSS section
     ldr     x1, =__bss_start // Start address. From the linker script.
     ldr     w2, =__bss_size  // Size of the section. From the linker script.
-bss_loop:  cbz     w2, bootloader_loop_exit  // Quit loop if zero
+bss_loop:
+    cbz     w2, bootloader_loop_exit  // Quit loop if zero
     str     xzr, [x1], #8 // Load 8 NULL bytes from the zero register
     sub     w2, w2, #1 // subtract from our counter
     cbnz    w2, bss_loop // Loop if non-zero

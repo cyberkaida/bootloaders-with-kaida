@@ -41,6 +41,8 @@ apt install qemu-system-aarch64 qemu-kvm make clang llvm lld screen
 
 ### GitHub CodeSpace
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/cyberkaida/bootloaders-with-kaida?quickstart=1)
+
 The [GitHub CodeSpace](https://docs.github.com/en/codespaces)
 is a hosted virtual machine with the tools required for this class pre-installed.
 

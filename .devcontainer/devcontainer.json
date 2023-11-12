@@ -5,5 +5,16 @@
    "args": { }
   },
   "features": {
-  }
+},
+"customizations": {
+	"vscode": {
+		"extensions": [
+			"ms-vscode.cpptools",
+			"ms-vscode.makefile-tools",
+			"dan-c-underwood.arm",
+			"ZixuanWang.linkerscript",
+			"ms-vscode.cpptools-extension-pack"
+		]
+	}
+}
 }

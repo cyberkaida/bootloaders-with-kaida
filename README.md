@@ -16,7 +16,7 @@ includes a lot of external links to help refresh your memory or learn more!
 
 - Familiarity with the C programming language[^2][^3]
   - Many bootloaders are written in C, so we will use C for our examples and exercises
-  - You should know concepts such as [pointers](https://en.wikipedia.org/wiki/Pointer_(computer_programming)), [arrays](https://en.wikipedia.org/wiki/Array_(data_structure)), [functions](https://en.wikipedia.org/wiki/Function_(computer_programming)), [heap](https://en.wikipedia.org/wiki/C_dynamic_memory_allocation) and [stack](https://en.wikipedia.org/wiki/Call_stack) allocation
+  - You should know concepts such as pointers[^7], arrays[^8], functions[^9], heap and stack allocation
 - Some basic knowledge of assembly[^4]
   - We will be writing some basic assembly to move values between registers[^5], set constants, etc
   - If you can write a for loop in assembly[^6] you will be OK!
@@ -57,3 +57,8 @@ Some reference material to help you get started!
 [^4]: [ARM Assembler in Raspberry Pi](https://thinkingeek.com/arm-assembler-raspberry-pi/) - A guide to ARM assembly using the Raspberry Pi
 [^5]: [ARM Assembler in Raspberry Pi - Registers](https://thinkingeek.com/2013/01/10/arm-assembler-raspberry-pi-chapter-2/)
 [^6]: [ARM Assembler in Raspberry Pi - Control Structures](https://thinkingeek.com/2013/01/20/arm-assembler-raspberry-pi-chapter-6/)
+[^7]: [Pointers](https://en.wikipedia.org/wiki/Pointer_(computer_programming))
+[^8]: [Arrays](https://en.wikipedia.org/wiki/Array_(data_structure))
+[^9]: [Functions](https://en.wikipedia.org/wiki/Function_(computer_programming))
+[^10]: [Heap allocation](https://en.wikipedia.org/wiki/C_dynamic_memory_allocation)
+[^11]: [Stack allocation](https://en.wikipedia.org/wiki/Call_stack)

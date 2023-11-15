@@ -156,11 +156,14 @@ Some useful references for linker scripting:
 Once we have compiled our binary with these options, we will have an ELF
 file. If we inspect this file we'll see it starts with an ELF header:
 
-First we can output the first few bytes as hex using [`xxd`](https://linux.die.net/man/1/xxd)
-```
+First we can output the first few bytes as hex using the [`xxd`](https://linux.die.net/man/1/xxd) command:
+
+```sh
 xxd kernel8.elf | head -n 5
 ```
+
 At the start of the file here, we see the [ELF magic](https://linux.die.net/man/5/elf) (`EI_MAG0`, etc)
+
 ```
 00000000: 7f45 4c46 0201 0100 0000 0000 0000 0000  .ELF............
 00000010: 0200 b700 0100 0000 0000 0800 0000 0000  ................
@@ -188,7 +191,13 @@ Pi will hang ✨👩‍💻🎉🎉
 
 [^3]: [The LLVM overview](https://llvm.org)
 
-## Bootstrapping to C
+## Bootstrapping to a higher level language
+
+So far we have written everything in assembly. This is fine for simple
+programs, but it would be great to have a high level language like C or
+Rust!
+
+Let's walk through the process of bootstrapping up to C.
 
 ### Single threading
 
@@ -198,7 +207,7 @@ a lot ourselves.
 
 For example:
 - We run all code on all cores
-- We don't have an allocator, or page tables
+- We don't have an allocator, or page tables, so no memory management
 - We don't have a calling convention, so no functions
 
 This sounds very scary, but we can build this ourselves!
@@ -209,6 +218,8 @@ want to deal with multithreading or multiprocessing complexity this early.
 We can do this on ARM using a special register and the [`mrs` instruction](https://developer.arm.com/documentation/dui0489/c/arm-and-thumb-instructions/coprocessor-instructions/mrs)
 the [Multiprocessor Affinity Register](https://developer.arm.com/documentation/ddi0595/2021-12/AArch64-Registers/MPIDR-EL1--Multiprocessor-Affinity-Register) (in the [ID functional group](https://developer.arm.com/documentation/ddi0595/2021-12/Registers-by-Functional-Group?lang=en#ID)) contains the current core ID. We can use this to write some
 shellcode that executions only on a particular core.
+
+> Question! Given the above, what can we do to make sure we only execute on a single core?
 
 The logic is:
 - Check the core ID
@@ -222,9 +233,10 @@ multiprocessing).
 In practice we can do something like the following:
 
 ```aarch64
+// Check processor ID is zero (executing on main core)
+// else hang.
 _start:
-    // Check processor ID is zero (executing on main core)
-    // else hang.
+    // Get the processor ID
     mrs     x1, mpidr_el1
     // Bitwise AND with 0b111.
     and     x1, x1, #3
@@ -267,7 +279,7 @@ For the standard C [calling convention](https://en.wikipedia.org/wiki/Calling_co
 we must implement [the stack](https://en.wikipedia.org/wiki/Call_stack)
 and place the bottom of the stack in the [`sp` register](https://developer.arm.com/documentation/dui0801/a/Overview-of-AArch64-state/Stack-Pointer-register).
 
-On ARM (and most platforms) the stack grows _down_. This means we place the highest address in the `sp` register, and each call will _subtract_ from
+On ARM (and most platforms) the stack grows _down_ from highest address to lowest. This means we place the highest address in the `sp` register, and each call will _subtract_ from
 this value to grow the stack.
 
 We should pick a location in memory for our stack that will not contain code or data that our bootloader uses. We

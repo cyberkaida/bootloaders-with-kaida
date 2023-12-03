@@ -56,26 +56,18 @@ embedded hardware.
 There are actually [many UARTs on the Raspberry Pi](https://elinux.org/RPi_Serial_Connection), connected to different
 components. There is a simple UART designed for early boot and to act as
 a console, the mini-UART. This is described in the BCM2711 datasheet, section 2.2.
-This section sounds complex, but we can break this down into simple steps.
+This section sounds complex, but we will break this down into simple steps later.
 
 First let's observe existing output. We can do this by enabling the mini-UART for the
-first and second stage bootloaders. The [documentation for the `config.txt` file](https://www.raspberrypi.com/documentation/computers/legacy_config_txt.html#uart_2ndstage)
-(on the `bootfs` partition of the SDCard)
-describes the `uart_2ndstage` option. When set to `1` the second stage bootloader will output
-to the mini-UART.
-
-The first stage bootloader is too simple to parse this file, instead it must be patched.
-[The bootcode.bin documentation](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#bootcode-bin-uart-enable)
-describes how to enable UART for the first stage bootloader.
-
-By observing existing output, we can confirm that our serial adapter is configured correctly.
-To configure our serial adapter we need to connect the pins to the mini-UART output,
-The following pins are used by the mini-UART:
-- [Ground - pin 6](https://pinout.xyz/pinout/ground)
-- [TX - GPIO 14 - pin 8](https://pinout.xyz/pinout/pin8_gpio14/)
-- [RX - GPIO 15 - pin 10](https://pinout.xyz/pinout/pin10_gpio15/)
+first and second stage bootloaders.
 
 > Remember! You must connect the TX (transmit) pin on the RPi to the RX (receive) pin of your serial adapter!
+
+**Let's try exercise [01-01 Serial Output](./exercises/01-01-serial-output/README.md) now!**
+
+Once we have serial working we can talk about what is happening in the next section.
+
+---
 
 ## The first stage bootloader
 

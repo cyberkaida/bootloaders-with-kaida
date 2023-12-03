@@ -1,7 +1,46 @@
 # 02 - Running code
 
+## What is a bootloader?
+
+Booting[^4] a computer is a complex process. We must build up layers of abstraction
+from the power switch all the way up to the operating system.
+
+It is helpful to view the boot process as a stack of abstraction.
+This starts with the hardware and each component starts the next.
+
+| Component |
+| --------- |
+| 4. User process |
+| 3. Kernel |
+| 2. Bootloader |
+| 1. Hardware |
+
+In this class we will focus on the bootloader and its interface with the
+hardware and the kernel.
+
+The bootloader's job is to implement the interface expected by the hardware,
+then bring hardware components online, load the kernel as it is expects to be loaded
+and pass control to the kernel.
+
+Some examples of things the bootloader is responsible for:
+- Bringing enough hardware online to start the kernel
+    - RAM, storage
+    - Sometimes networking, USB, etc for locating kernels
+    - Verifying the kernel to boot
+- Basic power management, initial charging, etc
+- Emergency recovery/flashing
+- Displaying a nice logo!
+
+
+[^4]: [Booting on Wikipedia](https://en.wikipedia.org/wiki/Booting)
+
+---
+
 Let's start by studying the existing bootloader!
-We can read through the [annotated boot log](../01-initial-research/annotated-boot-log.md)
+If you have a UART serial to USB adapter, you can start
+[Serial communications](#serial-communications) below.
+
+We can read through the [annotated boot log](../assets/annotated-boot-log.md)
 for an overview of the boot process.
 
 Some references that will be useful throughout this section:
@@ -33,8 +72,8 @@ By observing existing output, we can confirm that our serial adapter is configur
 To configure our serial adapter we need to connect the pins to the mini-UART output,
 The following pins are used by the mini-UART:
 - [Ground - pin 6](https://pinout.xyz/pinout/ground)
-- [GPIO 14 - pin 8](https://pinout.xyz/pinout/pin8_gpio14/)
-- [GPIO 15 - pin 10](https://pinout.xyz/pinout/pin10_gpio15/)
+- [TX - GPIO 14 - pin 8](https://pinout.xyz/pinout/pin8_gpio14/)
+- [RX - GPIO 15 - pin 10](https://pinout.xyz/pinout/pin10_gpio15/)
 
 > Remember! You must connect the TX (transmit) pin on the RPi to the RX (receive) pin of your serial adapter!
 
@@ -353,6 +392,8 @@ The linker will place all the uninitialised variables that would go into the `.b
 then set another symbol (`__bss_end`) to the end of the
 section. Note as this is `NOLOAD` this space is not emitted into the binary, only the symbols we define are inserted.
 Finally we emit a symbol for the size of the `.bss` section, so we know how long to loop for in our shellcode.
+
+TODO: Reword this section to talk about cooperation between linker and loader
 
 ```
     .bss (NOLOAD) : {

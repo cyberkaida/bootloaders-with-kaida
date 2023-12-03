@@ -2,8 +2,9 @@
 
 To work on this class you will need a few things!
 
-- A Linux or Mac machine
-- Some compilation tools
+- A Linux or Mac machine (or a virtual machine with USB passthrough)
+    - I have not tried with Windows WSL.
+- Some compilation tools (see [machine setup](#machine-setup) below)
 - A Raspberry Pi 4 or Raspberry Pi 400
 - A UART Serial Cable
 

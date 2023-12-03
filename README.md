@@ -1,9 +1,9 @@
 # Bootloaders with Kaida!
 
 Welcome to Bootloaders with Kaida! This is a free class on writing low level
-bootloader code and implementing secure boot! This is useful not only for
+bootloader code and implementing secure boot. This is useful not only for
 people writing bootloaders, but also for people curious about how computers
-work or people who want to try low level development!
+work or people who want to try low level development.
 
 In this class you will learn about bootloaders, how secure boot is typically
 implemented and about how to research hardware and develop a bootloader!
@@ -23,10 +23,10 @@ includes a lot of external links to help refresh your memory or learn more!
   - If you are familiar with another architecture and not ARM, you will be OK!
 
 The class is designed for the curious! You will find two kinds of links in the notes.
-[Inline links like this](https://github.com/cyberkaida/bootloaders-with-kaida)
+- Inline links [like this](https://github.com/cyberkaida/bootloaders-with-kaida)
 are for things you should read or understand for the material. You usually don't need to read
 the entire thing, but the link is to something you will probably need.
-The other kind of link is a footnote like this[^1], these are things that will improve your
+- The other kind of link is a footnote like this[^1], these are things that will improve your
 knowledge or might be interesting, but are not required reading.
 
 [^1]: A footnote is for things you might be interested in but is not required to read!

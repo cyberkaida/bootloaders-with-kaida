@@ -29,3 +29,6 @@ to the Raspberry Pi.
 
 # Additional learning
 - [Intro to ARM on OpenSecurityTraining](https://opensecuritytraining.info/IntroARM.html)
+- [ARM Assembler in Raspberry Pi](https://thinkingeek.com/arm-assembler-raspberry-pi/) - A guide to ARM assembly using the Raspberry Pi
+- [ARM Assembler in Raspberry Pi - Registers](https://thinkingeek.com/2013/01/10/arm-assembler-raspberry-pi-chapter-2/)
+- [ARM Assembler in Raspberry Pi - Control Structures](https://thinkingeek.com/2013/01/20/arm-assembler-raspberry-pi-chapter-6/)
